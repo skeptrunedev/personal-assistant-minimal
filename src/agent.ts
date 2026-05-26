@@ -69,7 +69,8 @@ function buildSandboxTools(threadKey: string) {
 export async function runAgent(
   userId: string,
   threadKey: string,
-  history: ModelMessage[]
+  history: ModelMessage[],
+  onToolCall?: (toolName: string) => void
 ): Promise<{ messages: ModelMessage[]; reply: string }> {
   const session = await composio.create(userId, { manageConnections: true });
   const composioTools = await session.tools();
@@ -81,6 +82,10 @@ export async function runAgent(
     tools: { ...composioTools, ...buildSandboxTools(threadKey) },
     stopWhen: stepCountIs(20),
   });
+
+  for await (const part of result.fullStream) {
+    if (part.type === 'tool-call' && onToolCall) onToolCall(part.toolName);
+  }
 
   const reply = await result.text;
   const { messages: newMessages } = await result.response;

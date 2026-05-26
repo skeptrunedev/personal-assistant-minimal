@@ -19,12 +19,16 @@ function toSlackMrkdwn(md: string): string {
     .replace(/^#{1,6}\s+(.+)$/gm, '*$1*');
 }
 
+function humanizeTool(slug: string): string {
+  return slug.toLowerCase().replace(/_/g, ' ');
+}
+
 async function handle(opts: {
   text: string;
   threadKey: string;
   userId: string;
   channel: string;
-  thread_ts?: string;
+  thread_ts: string;
   client: WebClient;
 }): Promise<void> {
   const { text, threadKey, userId, channel, thread_ts, client } = opts;
@@ -33,13 +37,23 @@ async function handle(opts: {
 
   const placeholder = await client.chat.postMessage({
     channel,
-    ...(thread_ts && { thread_ts }),
+    thread_ts,
     text: '_thinking…_',
   });
   const ts = placeholder.ts!;
 
+  let lastUpdateAt = 0;
+  const pushStatus = async (statusText: string): Promise<void> => {
+    const now = Date.now();
+    if (now - lastUpdateAt < 1000) return;
+    lastUpdateAt = now;
+    await client.chat.update({ channel, ts, text: statusText }).catch(() => {});
+  };
+
   try {
-    const { messages, reply } = await runAgent(userId, threadKey, history);
+    const { messages, reply } = await runAgent(userId, threadKey, history, (toolName) => {
+      void pushStatus(`_using ${humanizeTool(toolName)}…_`);
+    });
     threads.set(threadKey, messages);
     await client.chat.update({
       channel,
@@ -56,12 +70,13 @@ async function handle(opts: {
 }
 
 app.event('app_mention', async ({ event, client }) => {
+  const thread_ts = event.thread_ts ?? event.ts;
   await handle({
     text: event.text,
-    threadKey: event.thread_ts ?? event.ts,
+    threadKey: thread_ts,
     userId: event.user ?? 'unknown',
     channel: event.channel,
-    thread_ts: event.ts,
+    thread_ts,
     client,
   });
 });
@@ -74,6 +89,7 @@ app.message(async ({ message, client }) => {
     threadKey: message.channel,
     userId: message.user ?? 'unknown',
     channel: message.channel,
+    thread_ts: message.thread_ts ?? message.ts,
     client,
   });
 });
