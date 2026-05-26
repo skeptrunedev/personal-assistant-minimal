@@ -1,8 +1,8 @@
 # personal-assistant-minimal
 
-A personal AI assistant that lives in your Slack DMs. **127 lines of TypeScript.**
+A personal AI assistant that lives in your Slack DMs. **190 lines of TypeScript.**
 
-It uses [Composio](https://composio.dev) for every third-party integration (Gmail, Calendar, Linear, Notion, Salesforce, etc.), [OpenRouter](https://openrouter.ai) for the model, and the [Vercel AI SDK](https://ai-sdk.dev) for the loop.
+It uses [Composio](https://composio.dev) for every third-party integration (Gmail, Calendar, Linear, Notion, Salesforce, etc.), [Daytona](https://daytona.io) for a per-thread Linux sandbox the model can run code in, [OpenRouter](https://openrouter.ai) for the model, and the [Vercel AI SDK](https://ai-sdk.dev) for the loop.
 
 ## Setup
 
@@ -25,14 +25,18 @@ Sign up at https://app.composio.dev. Copy your API key into `COMPOSIO_API_KEY`.
 
 You don't need to connect anything yet. The bot uses your Slack user ID as your Composio user ID and asks for OAuth on the fly — DM it "connect linear" or just ask it to do something with Linear and it'll send you an auth URL.
 
-### 4. Create your Slack app
+### 4. Get a Daytona API key
+
+Sign up at https://app.daytona.io. Under **Settings → API Keys**, create one and put it in `DAYTONA_API_KEY`. The bot lazily creates one sandbox per Slack thread; sandboxes auto-stop after 15 minutes idle and auto-archive after an hour.
+
+### 5. Create your Slack app
 
 Go to https://api.slack.com/apps → **Create New App** → **From an app manifest**. Paste the contents of [`slack-manifest.json`](./slack-manifest.json). Install it to your workspace.
 
 - Copy the **Bot User OAuth Token** (`xoxb-…`) → `SLACK_BOT_TOKEN`.
 - Under **Basic Information → App-Level Tokens**, create a token with the `connections:write` scope. Copy it (`xapp-…`) → `SLACK_APP_TOKEN`.
 
-### 5. Run
+### 6. Run
 
 ```bash
 npm start
@@ -42,7 +46,9 @@ DM the bot, or `@mention` it in any channel it's been invited to. That's it.
 
 ## How it works
 
-[`src/agent.ts`](./src/agent.ts) is the loop. It creates a Composio session, asks Composio for every tool you've connected, and hands them to `streamText`. The model decides what to call.
+[`src/agent.ts`](./src/agent.ts) is the loop. It creates a Composio session, asks Composio for every tool you've connected, layers in three sandbox-backed tools (`bash`, `read_file`, `write_file`), and hands the union to `streamText`. The model decides what to call.
+
+[`src/sandbox.ts`](./src/sandbox.ts) is the Daytona wrapper. One sandbox per Slack thread, lazily provisioned. Auto-stops idle, auto-archives, so you don't pay for sandboxes nobody's using.
 
 [`src/index.ts`](./src/index.ts) is the Slack frontend. It maintains a per-thread message history in a `Map`, routes `app_mention` and DM events to the agent (passing the Slack `user` ID as the Composio user ID), and posts the reply back.
 
