@@ -1,0 +1,23 @@
+{
+  "name": "personal-assistant-minimal",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "type": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@composio/core": "^0.10.0",
+    "@composio/vercel": "^0.9.2",
+    "@openrouter/ai-sdk-provider": "^1.5.4",
+    "@slack/bolt": "^4.4.0",
+    "ai": "^5.0.0",
+    "dotenv": "^16.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
