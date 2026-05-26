@@ -39,7 +39,7 @@ async function handle(opts: {
   const ts = placeholder.ts!;
 
   try {
-    const { messages, reply } = await runAgent(userId, history);
+    const { messages, reply } = await runAgent(userId, threadKey, history);
     threads.set(threadKey, messages);
     await client.chat.update({
       channel,
